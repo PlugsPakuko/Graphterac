@@ -100,7 +100,7 @@ export default function ScanPage() {
 
       {/* SilkGraph title fixed at top-center */}
       <div style={{ position: "fixed", left: 0, right: 0, top: 16, pointerEvents: "none", zIndex: 10001 }}>
-        <div style={{ textAlign: "center", fontSize: 20, color: "#f8fafc", fontWeight: 600, textShadow: "0 1px 0 rgba(0,0,0,0.7)" }}>SilkGraph</div>
+  <div style={{ textAlign: "center", fontSize: 20, color: "#f8fafc", fontWeight: 600, textShadow: "0 1px 0 rgba(0,0,0,0.7)", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif" }}>SilkGraph</div>
       </div>
 
       {/* Always-visible controls toggle + Clear button */}

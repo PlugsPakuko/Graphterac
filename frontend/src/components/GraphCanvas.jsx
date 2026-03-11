@@ -17,7 +17,7 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
   const padding = 40
 
   const { nodes = [], edges = [] } = data || {}
-  const globalFontFamily = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial'
+  const globalFontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif"
   const highlightedSet = useMemo(() => new Set(highlightIds || []), [highlightIds])
 
   const cardSizeFor = (category) => {
@@ -689,7 +689,7 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
           {nodesCount === 0 && (
             <g>
               <rect x={0} y={0} width={layoutWidth} height={layoutHeight} fill="rgba(7,16,36,0.0)" />
-              <text x={layoutWidth / 2} y={layoutHeight / 2} textAnchor="middle" fontSize={18} fill="#94a3b8">No nodes to display — run a scan or load data</text>
+              <text x={layoutWidth / 2} y={layoutHeight / 2} textAnchor="middle" fontSize={18} fill="#94a3b8" style={{ fontFamily: globalFontFamily }}>{"No nodes to display — run a scan or load data"}</text>
             </g>
           )}
           {/* edges */}
