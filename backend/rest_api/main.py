@@ -24,7 +24,7 @@ from backend.docker_api import (
     is_subdomain_alive,
     run_dnsx,
     run_naabu_with_nmap,
-    run_subfinder,
+    subdomain_enum
 )
 from backend.cypher_api import create_full_scan_graph
 
@@ -84,7 +84,7 @@ async def scan_domain(payload: ScanRequest) -> ScanGraphResponse:
     """Run a scan and return a graph-style response (nodes + edges).
 
     Flow changed to:
-    1) Subdomain discovery (subfinder)
+    1) Subdomain discovery (subdomain_enum)
     2) Subdomain reachability (is_subdomain_alive)
     3) Resolve to IPs (dnsx)
     4) Scan each unique IP once (is_ip_alive + run_naabu_with_nmap)
@@ -97,7 +97,7 @@ async def scan_domain(payload: ScanRequest) -> ScanGraphResponse:
     project_root.mkdir(parents=True, exist_ok=True)
 
     # 1) Subdomain discovery
-    subdomains = run_subfinder(domain)
+    subdomains = subdomain_enum(domain)
     (project_root / "subdomains.txt").write_text("\n".join(subdomains), encoding="utf-8")
 
     if not subdomains:
