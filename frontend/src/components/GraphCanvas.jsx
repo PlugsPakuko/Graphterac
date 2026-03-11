@@ -621,11 +621,32 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
   }
 
   const resetView = () => {
-    setPan({ x: 0, y: 0 })
-    setScale(1)
+    // Recenter on the root domain node.
+    const svg = svgRef.current
+    const container = svg && svg.parentElement
+    const rect = container ? container.getBoundingClientRect() : null
+    const viewportW = rect && rect.width ? rect.width : (typeof window !== "undefined" ? window.innerWidth : layoutWidth)
+    const viewportH = rect && rect.height ? rect.height : (typeof window !== "undefined" ? window.innerHeight : layoutHeight)
+
+    const domainNode = (nodes || []).find((n) => n.category === "domain")
+    const domainPos = domainNode && posMap[domainNode.id]
+    const nextScale = 1
+
+    let nextPan = { x: 0, y: 0 }
+    if (domainPos) {
+      nextPan = {
+        x: viewportW / (2 * nextScale) - domainPos.x,
+        y: viewportH / (2 * nextScale) - domainPos.y,
+      }
+    }
+
+    setPan(nextPan)
+    setScale(nextScale)
     setPositionsState(positioned.positions || {})
-    panRef.current = { x: 0, y: 0 }
-    scaleRef.current = 1
+    panRef.current = nextPan
+    scaleRef.current = nextScale
+    panTargetRef.current = nextPan
+    scaleTargetRef.current = nextScale
   }
 
   return (
