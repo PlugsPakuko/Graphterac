@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from "react"
+import Button from './ui/Button'
+import '../styles/ui.css'
 import NodeCard from "./NodeCard"
 import DraggableWindow from "./DraggableWindow"
 import { API_BASE } from "../api/api"
@@ -26,77 +28,178 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
     return { w: 200, h: 88 }
   }
 
+  // Hierarchical, parent-centered layout similar to Neo4j
   const positioned = useMemo(() => {
-    const byCategory = {
-      domain: nodes.filter((n) => n.category === "domain"),
-      subdomain: nodes.filter((n) => n.category === "subdomain"),
-      ip: nodes.filter((n) => n.category === "ip"),
-      other: nodes.filter((n) => !["domain", "subdomain", "ip"].includes(n.category)),
+    const positions = {}
+    const nodesById = nodes.reduce((m, n) => ((m[n.id] = n), m), {})
+
+    // Build child/parent relationships using common relation labels
+    const childMap = {}
+    const parentMap = {}
+    edges.forEach((e) => {
+      if (!e || !e.source || !e.target) return
+      const lab = String(e.label || '').toUpperCase()
+      // treat common hierarchical relations as parent -> child
+      // HAS_SUBDOMAIN : domain -> subdomain
+      // RESOLVES_TO   : subdomain -> ip
+      // HAS_PORT      : ip -> port
+      // fallback: treat as directed source->target
+      const isHier = ['HAS_SUBDOMAIN', 'RESOLVES_TO', 'HAS_PORT'].includes(lab)
+      const src = e.source
+      const tgt = e.target
+      childMap[src] = childMap[src] || []
+      childMap[src].push(tgt)
+      parentMap[tgt] = parentMap[tgt] || []
+      parentMap[tgt].push(src)
+    })
+
+    // helper to get card size by node id
+    const cardForId = (id) => {
+      const n = nodesById[id]
+      return cardSizeFor(n && n.category)
     }
 
-    const positions = {}
-
-    const subToIp = new Map()
-    edges.forEach((e) => {
-      if (e.label !== "RESOLVES_TO") return
-      if (!e.source || !e.target) return
-      subToIp.set(e.source, e.target)
-    })
-
-    const ipOrder = byCategory.ip.map((n) => n.id)
-    const ipIndex = new Map(ipOrder.map((id, i) => [id, i]))
-
-    const groupedSubdomains = [...byCategory.subdomain].sort((a, b) => {
-      const ia = ipIndex.get(subToIp.get(a.id)) ?? Number.MAX_SAFE_INTEGER
-      const ib = ipIndex.get(subToIp.get(b.id)) ?? Number.MAX_SAFE_INTEGER
-      if (ia !== ib) return ia - ib
-      return String(a.label || a.id).localeCompare(String(b.label || b.id))
-    })
-
-    const rows = [
-      { key: "domain", nodes: byCategory.domain },
-      { key: "subdomain", nodes: groupedSubdomains },
-      { key: "ip", nodes: byCategory.ip },
-      { key: "other", nodes: byCategory.other },
-    ]
-
     const minGapX = 40
-    const minGapY = 160
-    const minWidth = 800
-    const minHeight = 700
+    const minGapY = 80
+    const pad = padding
 
-    const rowWidths = rows.map((r) => {
-      if (!r.nodes.length) return 0
-      const cardW = cardSizeFor(r.key).w
-      return r.nodes.length * cardW + (r.nodes.length + 1) * minGapX
+    // memoized subtree width (in world units) computation to center parents above children
+    const widthMemo = new Map()
+    const visiting = new Set()
+    const subtreeWidth = (id) => {
+      if (widthMemo.has(id)) return widthMemo.get(id)
+      if (visiting.has(id)) {
+        // cycle detected; treat as leaf
+        const w = cardForId(id).w + minGapX
+        widthMemo.set(id, w)
+        return w
+      }
+      visiting.add(id)
+      const kids = (childMap[id] || []).filter((c) => nodesById[c])
+      let w
+      if (!kids.length) {
+        w = cardForId(id).w + minGapX
+      } else {
+        w = kids.reduce((sum, c) => sum + subtreeWidth(c), 0)
+      }
+      widthMemo.set(id, w)
+      visiting.delete(id)
+      return w
+    }
+
+    // compute leaf descendants (used to produce a stable grouping key for sorting)
+    const leavesMemo = new Map()
+    const leavesVisiting = new Set()
+    const subtreeLeaves = (id) => {
+      if (leavesMemo.has(id)) return leavesMemo.get(id)
+      if (leavesVisiting.has(id)) {
+        leavesMemo.set(id, [])
+        return []
+      }
+      leavesVisiting.add(id)
+      const kids = (childMap[id] || []).filter((c) => nodesById[c])
+      let out = []
+      if (!kids.length) {
+        out = [id]
+      } else {
+        const set = new Set()
+        kids.forEach((c) => {
+          const sub = subtreeLeaves(c) || []
+          sub.forEach((s) => set.add(s))
+        })
+        out = Array.from(set).sort()
+      }
+      leavesMemo.set(id, out)
+      leavesVisiting.delete(id)
+      return out
+    }
+
+    // find roots (nodes without any parent). If none, pick all nodes as separate roots.
+    const allIds = nodes.map((n) => n.id)
+    const roots = allIds.filter((id) => !(parentMap[id] && parentMap[id].length))
+    const effectiveRoots = roots.length ? roots : allIds.slice()
+
+    // layout traversal: place subtrees left-to-right, compute x as center of children
+    let cursorX = pad
+    let maxDepth = 0
+    const levelHeights = {} // track max card height per depth
+
+    const placeSubtree = (id, depth = 0) => {
+      maxDepth = Math.max(maxDepth, depth)
+      let kids = (childMap[id] || []).filter((c) => nodesById[c])
+      // Sort children to cluster nodes that share the same leaf/IP descendants.
+      // This makes siblings that resolve to the same IP sit next to each other,
+      // reducing long crossing edges when many subdomains point to the same IP.
+      kids = kids.slice().sort((a, b) => {
+        const la = subtreeLeaves(a).join(',')
+        const lb = subtreeLeaves(b).join(',')
+        if (la < lb) return -1
+        if (la > lb) return 1
+        // stable tie-breaker by id
+        if (a < b) return -1
+        if (a > b) return 1
+        return 0
+      })
+      const card = cardForId(id)
+      const cardW = card.w
+      const cardH = card.h
+      levelHeights[depth] = Math.max(levelHeights[depth] || 0, cardH)
+
+  if (!kids.length) {
+        // leaf: place at current cursorX
+        const x = cursorX + cardW / 2
+        const y = pad + depth * (Math.max(...Object.values(levelHeights || { 0: cardH })) + minGapY) + cardH / 2
+        positions[id] = { x, y }
+        cursorX += cardW + minGapX
+        return
+      }
+
+      // internal: reserve width equal to sum of child subtree widths
+      const totalKidsWidth = kids.reduce((s, c) => s + subtreeWidth(c), 0)
+      const startX = cursorX
+  kids.forEach((c) => placeSubtree(c, depth + 1))
+      const childXs = kids.map((c) => positions[c].x)
+      const minChildX = Math.min(...childXs)
+      const maxChildX = Math.max(...childXs)
+      const x = (minChildX + maxChildX) / 2
+      const y = pad + depth * (Math.max(...Object.values(levelHeights || { 0: cardH })) + minGapY) + cardH / 2
+      positions[id] = { x, y }
+      // advance cursor if this subtree consumed space
+      cursorX = Math.max(cursorX, startX + totalKidsWidth)
+    }
+
+    // place each root left-to-right
+    effectiveRoots.forEach((r) => {
+      // only place nodes that exist
+      if (!nodesById[r]) return
+      // compute width to advance cursor appropriately
+      const w = subtreeWidth(r)
+      // if cursor already beyond, leave as is, otherwise ensure cursor accounts for gap
+      if (cursorX > pad && cursorX + w > cursorX) {
+        // no-op; children placement will advance cursor
+      }
+      placeSubtree(r, 0)
+      // add an extra gap between root subtrees
+      cursorX += minGapX
     })
-    const layoutWidth = Math.max(minWidth, ...rowWidths)
 
-    const rowHeights = rows.map((r) => (r.nodes.length ? cardSizeFor(r.key).h : 0))
-    const layoutHeight = Math.max(
-      minHeight,
-      padding * 2 + rowHeights.reduce((sum, h) => sum + h, 0) + minGapY * (rows.length - 1)
-    )
-
-    const placeRow = (arr, y, category) => {
-      if (!arr.length) return
-      const cardW = cardSizeFor(category).w
-      const gap = (layoutWidth - arr.length * cardW) / (arr.length + 1)
-      arr.forEach((n, i) => {
-        const x = gap + cardW / 2 + i * (cardW + gap)
-        positions[n.id] = { x, y }
+    // any node not placed (orphans/cycles) -> place on a supplemental row
+    const unplaced = allIds.filter((id) => !positions[id])
+    if (unplaced.length) {
+      const rowY = pad + (maxDepth + 1) * (Math.max(...Object.values(levelHeights || { 0: 120 })) + minGapY) + 60
+      unplaced.forEach((id) => {
+        const card = cardForId(id)
+        const x = cursorX + card.w / 2
+        positions[id] = { x, y: rowY }
+        cursorX += card.w + minGapX
       })
     }
 
-    let cursorY = padding
-    rows.forEach((row, idx) => {
-      const rowH = row.nodes.length ? cardSizeFor(row.key).h : 0
-      const y = cursorY + (rowH ? rowH / 2 : 0)
-      placeRow(row.nodes, y, row.key)
-      cursorY += rowH + (idx < rows.length - 1 ? minGapY : 0)
-    })
+    const layoutWidth = Math.max(800, cursorX + pad)
+    const totalLevelHeights = Object.values(levelHeights).reduce((s, v) => s + v, 0)
+    const layoutHeight = Math.max(700, pad * 2 + (maxDepth + 1) * (Math.max(...Object.values(levelHeights || { 0: 120 })) + minGapY) + 200)
 
-    return { positions, nodesById: nodes.reduce((m, n) => ((m[n.id] = n), m), {}), layoutWidth, layoutHeight }
+    return { positions, nodesById, layoutWidth, layoutHeight }
   }, [data, padding])
 
   const colorFor = (category) => {
@@ -503,12 +606,9 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
   return (
     <div style={{ width: "100%", overflow: "auto", position: "relative" }}>
       {/* floating reset control to recover from off-screen / blank view */}
-      <button
-        onClick={resetView}
-        style={{ position: "fixed", left: 12, top: 12, zIndex: 1000, padding: "6px 10px", borderRadius: 6, background: "#0b1220", color: "#cbd5e1", border: "1px solid #233047" }}
-      >
-        Reset view
-      </button>
+      <div style={{ position: 'fixed', left: 12, top: 12, zIndex: 1000 }}>
+        <Button onClick={resetView} className="btn-ghost">Reset view</Button>
+      </div>
       {/* wheel listener attached in useEffect to allow non-passive preventDefault */}
       <svg
         ref={svgRef}
@@ -549,6 +649,12 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
           {/* edges */}
           {hasHighlights ? null : (
             <g stroke="#374151" strokeWidth="1">
+              {/* arrow marker for directed edges */}
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="strokeWidth">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af" />
+                </marker>
+              </defs>
               {edges.map((e, idx) => {
                 const s = posMap[e.source]
                 const t = posMap[e.target]
@@ -568,21 +674,31 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
                       y1={s.y}
                       x2={t.x}
                       y2={t.y}
-                      strokeOpacity={0.6}
+                      strokeOpacity={0.9}
                       stroke="#9ca3af"
-                      strokeWidth={1}
+                      strokeWidth={1.8}
                       markerEnd="url(#arrow)"
                     />
                     {e.label && (() => {
-                      const lbl = String(e.label)
+                      const lbl = String(e.label || '')
+                      const fontSize = 12
+                      const approxCharWidth = 7
+                      const padX = 8
+                      const padY = 6
+                      const textWidth = Math.max(24, lbl.length * approxCharWidth)
+                      const boxW = textWidth + padX * 2
+                      const boxH = fontSize + padY * 2
                       // normalize angle so text never appears upside-down
                       let angleDeg = angle
                       if (angleDeg > 90 || angleDeg < -90) {
                         angleDeg = angleDeg + 180
                       }
                       return (
-                        <g transform={`translate(${mx}, ${my}) rotate(${angleDeg})`}>
-                          <text x={0} y={4} fontSize={12} fontWeight={600} fill="#f1f5f9" textAnchor="middle" style={{ pointerEvents: "none", fontFamily: globalFontFamily }}>{lbl}</text>
+                        <g transform={`translate(${mx}, ${my}) rotate(${angleDeg})`} pointerEvents="none">
+                          {/* background box */}
+                          <rect x={-boxW / 2} y={-boxH / 2} width={boxW} height={boxH} rx={6} fill="#0b1220" stroke="#233047" strokeWidth={1} />
+                          {/* bold label text centered in box */}
+                          <text x={0} y={0} fontSize={fontSize} fontWeight={800} fill="#f1f5f9" textAnchor="middle" dominantBaseline="middle" style={{ fontFamily: globalFontFamily }}>{lbl}</text>
                         </g>
                       )
                     })()}
@@ -717,11 +833,11 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
                           />
                         )
                       })()}
-                      {/* label text (up to two lines), left-aligned inside card */}
+                      {/* label text (up to two lines), centered inside card */}
                       {showLabel && (
-                        <text x={textX} y={-6} fontSize={13} fill={isHighlighted ? '#fff' : '#e6eef6'} textAnchor='start' style={{ fontFamily: globalFontFamily, pointerEvents: 'none' }}>
+                        <text x={0} y={linesToRender.length === 2 ? -6 : 0} fontSize={16} fill={isHighlighted ? '#fff' : '#e6eef6'} textAnchor='middle' style={{ fontFamily: globalFontFamily, pointerEvents: 'none' }}>
                           {linesToRender.map((ln, i) => (
-                            <tspan key={i} x={textX} dy={i === 0 ? 0 : 18}>{ln}</tspan>
+                            <tspan key={i} x={0} dy={i === 0 ? 0 : 18}>{ln}</tspan>
                           ))}
                         </text>
                       )}

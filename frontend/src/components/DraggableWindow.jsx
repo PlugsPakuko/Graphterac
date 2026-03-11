@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import '../styles/ui.css'
+
 export default function DraggableWindow({
   header,
   children,
@@ -9,6 +11,7 @@ export default function DraggableWindow({
   headerStyle = {},
   bodyStyle = {},
   zIndex = 2147483647,
+  className = '',
 }) {
   const [pos, setPos] = useState(initialPosition)
   const dragRef = useRef(null)
@@ -59,10 +62,11 @@ export default function DraggableWindow({
   }, [onPointerMove, onPointerUp])
 
   return (
-    <div ref={wrapperRef} style={{ position: "fixed", left: pos.x, top: pos.y, zIndex, ...style }}>
+    <div ref={wrapperRef} style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex, ...style }} className={className}>
       <div
         onPointerDown={onPointerDown}
-        style={{ cursor: "move", touchAction: "none", userSelect: "none", ...headerStyle }}
+        style={{ cursor: 'move', touchAction: 'none', userSelect: 'none', ...headerStyle }}
+        className="panel"
       >
         {header}
       </div>

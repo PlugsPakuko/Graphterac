@@ -2,7 +2,10 @@ import { useState, useMemo } from "react"
 import GraphCanvas from "../components/GraphCanvas"
 import { startScan } from "../api/api"
 import DraggableWindow from "../components/DraggableWindow"
+import Button from "../components/ui/Button"
+import Input from "../components/ui/Input"
 import "../styles/flowsint.css"
+import "../styles/ui.css"
 
 export default function ScanPage() {
   const [domain, setDomain] = useState("")
@@ -92,12 +95,11 @@ export default function ScanPage() {
       </div>
 
       {/* Always-visible controls toggle */}
-      <button
-        onClick={() => setControlsOpen((s) => !s)}
-        style={{ position: "fixed", right: 16, top: 16, zIndex: 2147483647, padding: "8px 10px", borderRadius: 8, background: "#0b1220", color: "#e5e7eb", border: "1px solid #233047", pointerEvents: "auto" }}
-      >
-        {controlsOpen ? "Hide controls" : "Show controls"}
-      </button>
+      <div style={{ position: 'fixed', right: 16, top: 16, zIndex: 2147483647, pointerEvents: 'auto' }}>
+        <Button onClick={() => setControlsOpen((s) => !s)} className="btn-ghost">
+          {controlsOpen ? "Hide controls" : "Show controls"}
+        </Button>
+      </div>
 
       {controlsOpen && (
         <DraggableWindow
@@ -108,61 +110,38 @@ export default function ScanPage() {
           header={<div>Controls</div>}
         >
           {error && (
-            <div style={{ marginBottom: 10, color: "#fecaca", background: "rgba(127,29,29,0.35)", border: "1px solid #7f1d1d", padding: "6px 8px", borderRadius: 6 }}>
-              {error}
+            <div style={{ marginBottom: 10 }} className="panel" >
+              <div style={{ color: "#fecaca", background: "rgba(127,29,29,0.15)", padding: "8px", borderRadius: 6 }}>{error}</div>
             </div>
           )}
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                placeholder="domain.example"
-                style={{ padding: 8, borderRadius: 6, background: "#0b1220", border: "1px solid #1f2937", color: "#e5e7eb" }}
-              />
-              <button onClick={handleScan} style={{ marginLeft: 6, padding: "8px 12px", borderRadius: 6, background: "#111827", color: "#fff", border: "none" }} disabled={loading || !domain}>
-                {loading ? "Scanning…" : "Scan"}
-              </button>
+          <div className="controls-row">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="domain.example" />
+              <Button onClick={handleScan} disabled={loading || !domain}>
+                {loading ? 'Scanning…' : 'Scan'}
+              </Button>
             </div>
 
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Find node by name"
-                style={{ padding: 8, borderRadius: 6, background: "#0b1220", border: "1px solid #1f2937", color: "#e5e7eb" }}
-              />
-              <button onClick={handleSearch} style={{ marginLeft: 6, padding: "8px 12px", borderRadius: 6, background: "#111827", color: "#fff", border: "none" }}>
-                Find
-              </button>
-              <button
-                onClick={() => {
-                  setSearch("")
-                  setHighlightIds([])
-                  setFilters({ domain: true, subdomain: true, ip: true, port: true })
-                  setAliveOnly(false)
-                  setClearSelectionFlag((v) => v + 1)
-                }}
-                style={{ padding: "8px 12px", borderRadius: 6, background: "#111827", color: "#fff", border: "none" }}
-              >
-                Clear
-              </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find node by name" />
+              <Button onClick={handleSearch}>Find</Button>
+              <Button onClick={() => { setSearch(''); setHighlightIds([]); setFilters({ domain: true, subdomain: true, ip: true, port: true }); setAliveOnly(false); setClearSelectionFlag((v) => v + 1) }} variant="ghost">Clear</Button>
             </div>
 
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", color: "#e5e7eb" }}>
-                <input type="checkbox" checked={filters.domain} onChange={() => toggleFilter("domain")} /> Domain
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#e5e7eb' }}>
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="checkbox" checked={filters.domain} onChange={() => toggleFilter('domain')} /> Domain
               </label>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", color: "#e5e7eb" }}>
-                <input type="checkbox" checked={filters.subdomain} onChange={() => toggleFilter("subdomain")} /> Subdomain
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="checkbox" checked={filters.subdomain} onChange={() => toggleFilter('subdomain')} /> Subdomain
               </label>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", color: "#e5e7eb" }}>
-                <input type="checkbox" checked={filters.ip} onChange={() => toggleFilter("ip")} /> IP
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="checkbox" checked={filters.ip} onChange={() => toggleFilter('ip')} /> IP
               </label>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", color: "#e5e7eb" }}>
-                <input type="checkbox" checked={filters.port} onChange={() => toggleFilter("port")} /> PORT
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="checkbox" checked={filters.port} onChange={() => toggleFilter('port')} /> PORT
               </label>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", color: "#e5e7eb" }}>
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <input type="checkbox" checked={aliveOnly} onChange={() => setAliveOnly((s) => !s)} /> Alive
               </label>
             </div>
