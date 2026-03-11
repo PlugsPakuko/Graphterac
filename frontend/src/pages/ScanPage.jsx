@@ -31,8 +31,17 @@ export default function ScanPage() {
       if (n.category === "subdomain" && !filters.subdomain) return false
       if (n.category === "ip" && !filters.ip) return false
       if (n.category === "port" && !filters.port) return false
-      // then, if aliveOnly is enabled, require alive === true for all nodes
-      if (aliveOnly) return n.alive === true
+      // then, if aliveOnly is enabled, require alive === true for non-domain nodes
+      // Root domain nodes don't have an alive status and should always appear.
+      if (aliveOnly) {
+        if (n.category === "domain") return true
+        // For ports, prefer explicit status === 'open', fall back to alive flag
+        if (n.category === "port") {
+          const st = (n.status || "").toString().toLowerCase()
+          return st === "open" || n.alive === true
+        }
+        return n.alive === true
+      }
       return true
     })
 
@@ -94,11 +103,14 @@ export default function ScanPage() {
         <div style={{ textAlign: "center", fontSize: 20, color: "#f8fafc", fontWeight: 600, textShadow: "0 1px 0 rgba(0,0,0,0.7)" }}>SilkGraph</div>
       </div>
 
-      {/* Always-visible controls toggle */}
+      {/* Always-visible controls toggle + Clear button */}
       <div style={{ position: 'fixed', right: 16, top: 16, zIndex: 2147483647, pointerEvents: 'auto' }}>
-        <Button onClick={() => setControlsOpen((s) => !s)} className="btn-ghost">
-          {controlsOpen ? "Hide controls" : "Show controls"}
-        </Button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button onClick={() => { setSearch(''); setHighlightIds([]); setFilters({ domain: true, subdomain: true, ip: true, port: true }); setAliveOnly(false); setClearSelectionFlag((v) => v + 1) }} className="btn-ghost">Clear</Button>
+          <Button onClick={() => setControlsOpen((s) => !s)} className="btn-ghost">
+            {controlsOpen ? "Hide controls" : "Show controls"}
+          </Button>
+        </div>
       </div>
 
       {controlsOpen && (
@@ -142,7 +154,7 @@ export default function ScanPage() {
                 <input type="checkbox" checked={filters.port} onChange={() => toggleFilter('port')} /> PORT
               </label>
               <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="checkbox" checked={aliveOnly} onChange={() => setAliveOnly((s) => !s)} /> Alive
+                <input type="checkbox" checked={aliveOnly} onChange={() => setAliveOnly((s) => !s)} /> Alive/Open
               </label>
             </div>
           </div>
