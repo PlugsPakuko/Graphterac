@@ -195,6 +195,31 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
       })
     }
 
+    // Center nodes that have multiple parents (shared nodes), e.g. many subdomains resolving to same IP.
+    // Compute the average x of available parent positions and shift the shared node's subtree by the delta.
+    const shared = allIds.filter((id) => (parentMap[id] || []).length > 1)
+    const shifted = new Set()
+    const shiftSubtree = (startId, dx) => {
+      const stack = [startId]
+      while (stack.length) {
+        const cur = stack.pop()
+        if (!cur || shifted.has(cur)) continue
+        if (positions[cur]) positions[cur].x = (positions[cur].x || 0) + dx
+        shifted.add(cur)
+        ;(childMap[cur] || []).forEach((c) => stack.push(c))
+      }
+    }
+    shared.forEach((id) => {
+      const parents = (parentMap[id] || []).filter((p) => positions[p])
+      if (!parents.length) return
+      const avg = parents.reduce((s, p) => s + (positions[p].x || 0), 0) / parents.length
+      const curX = (positions[id] && positions[id].x) || null
+      if (curX === null) return
+      const dx = avg - curX
+      if (Math.abs(dx) < 1) return
+      shiftSubtree(id, dx)
+    })
+
     const layoutWidth = Math.max(800, cursorX + pad)
     const totalLevelHeights = Object.values(levelHeights).reduce((s, v) => s + v, 0)
     const layoutHeight = Math.max(700, pad * 2 + (maxDepth + 1) * (Math.max(...Object.values(levelHeights || { 0: 120 })) + minGapY) + 200)
