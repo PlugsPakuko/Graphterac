@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import os
@@ -38,6 +39,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve project artifacts (including screenshots) as static files.
+# Example: /backend/projects/{domain}/screenshot/{file}.png
+backend_dir = Path(__file__).resolve().parents[1]
+projects_dir = backend_dir / "projects"
+projects_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/backend/projects", StaticFiles(directory=str(projects_dir)), name="projects")
+
 
 class ScanRequest(BaseModel):
     domain: str
