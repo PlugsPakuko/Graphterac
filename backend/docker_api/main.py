@@ -29,10 +29,9 @@ def init_project(domain: str):
     else:
         print(f"folder for {domain} already existed at /tmp/{domain}")
 
-
-def run_subfinder(domain: str) -> List[str]:
+def subdomain_enum(domain: str):
     """
-    Run subfinder inside the CLI Engine container and return a list of subdomains.
+    Run both passive(run_subfinder) and active (run_alterx) to find all subdomains then combine subdomain list. 
     """
     domain = domain.strip()
     if not domain:
@@ -40,12 +39,34 @@ def run_subfinder(domain: str) -> List[str]:
 
     init_project(domain)
 
+    passive_subdomains = run_subfinder(domain)
+    active_subdomains = run_alterx(domain)
+
+    subdomains = list(passive_subdomains | active_subdomains)
+    _write_subdomains_file(domain, subdomains)
+
+    return list(subdomains)
+
+def run_subfinder(domain: str) -> set[str]:
+    """
+    Run subfinder inside the CLI Engine container and return a list of subdomains.
+    """
     cmd = f"subfinder -d {domain} -silent"
     result = _worker.exec_run(["/bin/sh", "-c", cmd])
     raw_output = result.output.decode("utf-8", errors="ignore")
 
-    subdomains = [line.strip() for line in raw_output.splitlines() if line.strip()]
-    _write_subdomains_file(domain, subdomains)
+    subdomains = {line.strip() for line in raw_output.splitlines() if line.strip()}
+    return subdomains
+
+def run_alterx(domain: str) -> set[str]:
+    """
+    Act as active subdomain enumeration return accessible subdomain
+    """
+    cmd = f"echo {domain} | alterx -silent | dnsx -silent"
+    result = _worker.exec_run(["/bin/sh", "-c", cmd])
+    raw_output = result.output.decode("utf-8", errors="ignore")
+
+    subdomains = {line.strip() for line in raw_output.splitlines() if line.strip()}
     return subdomains
 
 
@@ -206,4 +227,4 @@ def _write_subdomains_file(domain: str, subdomains: List[str]) -> None:
     _worker.exec_run(["/bin/sh", "-c", cmd])
 
 
-__all__ = ["run_subfinder", "run_dnsx", "is_ip_alive", "run_naabu_with_nmap"]
+__all__ = ["subdomain_enum", "run_dnsx", "is_ip_alive", "run_naabu_with_nmap"]
