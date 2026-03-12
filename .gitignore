@@ -44,3 +44,23 @@ Thumbs.db
 
 # Project directories
 projects/
+
+# Frontend (React/Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+frontend/.eslintcache
+frontend/.stylelintcache
+frontend/coverage/
+frontend/.nyc_output/
+frontend/.storybook-out/
+frontend/storybook-static/
+frontend/*.log
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
