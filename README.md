@@ -69,3 +69,7 @@ python run_uvicorn.py
 - Implement more custom cli options for variability of techniques
 - CRUD with separate project workspace at frontend
 - Neo4j cipher integration for more filtering options
+
+## References
+
+- ProjectDiscovery — https://github.com/projectdiscovery (useful tools for discovery and automation such as subfinder, assetfinder, httpx, naabu, nuclei, and others). This project uses several discovery concepts and tooling workflows inspired by ProjectDiscovery's tools and research.
