@@ -76,8 +76,18 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
 
   // initialize mutable positions when layout changes
   useEffect(() => {
-    setPositionsState(positioned.positions || {})
-  }, [data])
+    // Merge newly computed layout positions with any existing user-modified positions.
+    // Previously we overwrote positionsState whenever `data` changed which discarded
+    // manual drags. Instead, keep prior positions (if any) and only fill in missing
+    // entries from the computed layout so Clear/filter actions don't reset user
+    // adjustments.
+    setPositionsState((prev) => {
+      const base = positioned.positions || {}
+      if (!prev || Object.keys(prev).length === 0) return base
+      // prefer previously stored (user) positions and add base for new nodes
+      return { ...base, ...prev }
+    })
+  }, [positioned.positions])
 
   // allow parent to clear selection + highlights on demand (e.g. Clear button)
   useEffect(() => {
@@ -481,7 +491,7 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
   }
 
   return (
-    <div style={{ width: "100%", overflow: "auto", position: "relative" }}>
+    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
       {/* floating reset control to recover from off-screen / blank view */}
       <div style={{ position: 'fixed', left: 12, top: 12, zIndex: 1000 }}>
         <Button onClick={resetView} className="btn-ghost">Reset view</Button>
@@ -531,6 +541,8 @@ export default function GraphCanvas({ data, width = 3000, height = 2000, highlig
             posMap={posMap}
             nodesById={nodesById}
             highlightedSet={highlightedSet}
+            selectedComponentIds={selectedComponentIds}
+            selectedEdgeIds={selectedEdgeIds}
             onNodePointerEnter={handleNodePointerEnter}
             onNodePointerLeave={handleNodePointerLeave}
             onNodeDoubleClick={handleNodeDoubleClick}

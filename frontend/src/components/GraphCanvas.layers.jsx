@@ -24,10 +24,13 @@ function EdgesLayer({ edges, posMap, nodesById, selectedComponentIds, selectedEd
       {edges.map((e, idx) => {
         const s = posMap[e.source]
         const t = posMap[e.target]
+        // only draw edges when both endpoints have positional data
         if (!s || !t) return null
         const sNode = nodesById[e.source]
         const tNode = nodesById[e.target]
-        if (sNode && tNode && sNode.category === "port" && tNode.category === "port") return null
+        // only draw edges when both node objects exist in the current dataset
+        if (!sNode || !tNode) return null
+        if (sNode.category === "port" && tNode.category === "port") return null
         const mx = (s.x + t.x) / 2
         const my = (s.y + t.y) / 2
         const angle = Math.atan2(t.y - s.y, t.x - s.x) * (180 / Math.PI)
@@ -130,6 +133,8 @@ function NodesLayer({
   posMap,
   nodesById,
   highlightedSet,
+  selectedComponentIds,
+  selectedEdgeIds,
   onNodePointerEnter,
   onNodePointerLeave,
   onNodeDoubleClick,
@@ -139,10 +144,22 @@ function NodesLayer({
 }) {
   return (
     <g>
-      {Object.entries(posMap).map(([id, p]) => {
-        const node = nodesById[id] || {}
+      {Object.entries(nodesById).map(([id, node]) => {
+        const p = posMap[id]
+        // only render nodes that have an available position
+        if (!p) return null
         const displayLabel = getDisplayLabel(node)
-        const isHighlighted = highlightedSet.size > 0 ? highlightedSet.has(id) : false
+        // If a selection (component) is active, prioritize selection highlighting
+        const selectionActive = selectedComponentIds && selectedComponentIds.size
+        let isHighlighted = false
+        if (selectionActive) {
+          isHighlighted = selectedComponentIds.has(id)
+        } else {
+          isHighlighted = highlightedSet && highlightedSet.size ? highlightedSet.has(id) : false
+        }
+
+        const nodeOpacity = selectionActive ? (isHighlighted ? 1 : 0.08) : 1
+
         return (
           <g
             key={id}
@@ -153,6 +170,7 @@ function NodesLayer({
             onDoubleClick={() => onNodeDoubleClick(id, node)}
             onClick={(e) => onNodeClick(e, id, node)}
             onPointerDown={(ev) => onNodePointerDown(ev, id, p)}
+            opacity={nodeOpacity}
           >
             <NodeCardSVG node={node} displayLabel={displayLabel} isHighlighted={isHighlighted} globalFontFamily={globalFontFamily} />
             <title>
