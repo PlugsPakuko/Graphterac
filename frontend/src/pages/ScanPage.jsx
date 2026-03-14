@@ -8,6 +8,22 @@ import "../styles/flowsint.css"
 import "../styles/ui.css"
 
 export default function ScanPage() {
+  const defaultFilters = { domain: true, subdomain: true, ip: true, port: true }
+  const filterOptions = [
+    { key: "domain", label: "Domain" },
+    { key: "subdomain", label: "Subdomain" },
+    { key: "ip", label: "IP" },
+    { key: "port", label: "PORT" },
+  ]
+  const pageStyle = { background: "#0b1020", minHeight: "100vh", padding: 20, color: "#e5e7eb" }
+  const titleWrapStyle = { position: "fixed", left: 0, right: 0, top: 16, pointerEvents: "none", zIndex: 10001 }
+  const titleTextStyle = { textAlign: "center", fontSize: 20, color: "#f8fafc", fontWeight: 600, textShadow: "0 1px 0 rgba(0,0,0,0.7)", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif" }
+  const floatingControlsStyle = { position: "fixed", right: 16, top: 16, zIndex: 2147483647, pointerEvents: "auto" }
+  const rowStyle = { display: "flex", gap: 8, alignItems: "center" }
+  const checkboxRowStyle = { display: "flex", gap: 10, alignItems: "center", color: "#e5e7eb" }
+  const checkboxLabelStyle = { display: "flex", gap: 6, alignItems: "center" }
+  const windowStyle = { background: "rgba(7,16,36,0.95)", borderRadius: 8, boxShadow: "0 6px 18px rgba(0,0,0,0.6)", border: "1px solid #233047", pointerEvents: "auto" }
+  const windowHeaderStyle = { padding: "6px 10px", fontWeight: 600, color: "#e6eef6", borderBottom: "1px solid #233047", background: "rgba(7,16,36,0.98)", borderTopLeftRadius: 8, borderTopRightRadius: 8 }
   const [domain, setDomain] = useState("")
   const [scannedDomain, setScannedDomain] = useState("")
   const [controlsOpen, setControlsOpen] = useState(true)
@@ -17,31 +33,33 @@ export default function ScanPage() {
   const [search, setSearch] = useState("")
   const [highlightIds, setHighlightIds] = useState([])
   const [clearSelectionFlag, setClearSelectionFlag] = useState(0)
-  const [filters, setFilters] = useState({ domain: true, subdomain: true, ip: true, port: true })
+  const [filters, setFilters] = useState(defaultFilters)
   // toggle to show only alive nodes when true
   const [aliveOnly, setAliveOnly] = useState(false)
 
   const toggleFilter = (key) => setFilters((s) => ({ ...s, [key]: !s[key] }))
+  const handleClearAll = () => {
+    setSearch("")
+    setHighlightIds([])
+    setFilters(defaultFilters)
+    setAliveOnly(false)
+    setClearSelectionFlag((v) => v + 1)
+  }
+
+  const isAliveMatch = (node) => {
+    if (node.category === "domain") return true
+    if (node.category === "port") {
+      const st = (node.status || "").toString().toLowerCase()
+      return st === "open" || node.alive === true
+    }
+    return node.alive === true
+  }
 
   const filteredData = useMemo(() => {
     const nodes = (data.nodes || []).filter((n) => {
       if (!n || !n.category) return true
-      // first, respect category filters
-      if (n.category === "domain" && !filters.domain) return false
-      if (n.category === "subdomain" && !filters.subdomain) return false
-      if (n.category === "ip" && !filters.ip) return false
-      if (n.category === "port" && !filters.port) return false
-      // then, if aliveOnly is enabled, require alive === true for non-domain nodes
-      // Root domain nodes don't have an alive status and should always appear.
-      if (aliveOnly) {
-        if (n.category === "domain") return true
-        // For ports, prefer explicit status === 'open', fall back to alive flag
-        if (n.category === "port") {
-          const st = (n.status || "").toString().toLowerCase()
-          return st === "open" || n.alive === true
-        }
-        return n.alive === true
-      }
+      if (filters[n.category] === false) return false
+      if (aliveOnly) return isAliveMatch(n)
       return true
     })
 
@@ -96,17 +114,17 @@ export default function ScanPage() {
   }
 
   return (
-    <div style={{ background: "#0b1020", minHeight: "100vh", padding: 20, color: "#e5e7eb" }}>
+    <div style={pageStyle}>
 
       {/* SilkGraph title fixed at top-center */}
-      <div style={{ position: "fixed", left: 0, right: 0, top: 16, pointerEvents: "none", zIndex: 10001 }}>
-  <div style={{ textAlign: "center", fontSize: 20, color: "#f8fafc", fontWeight: 600, textShadow: "0 1px 0 rgba(0,0,0,0.7)", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif" }}>Graphterac</div>
+      <div style={titleWrapStyle}>
+        <div style={titleTextStyle}>Graphterac</div>
       </div>
 
       {/* Always-visible controls toggle + Clear button */}
-      <div style={{ position: 'fixed', right: 16, top: 16, zIndex: 2147483647, pointerEvents: 'auto' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Button onClick={() => { setSearch(''); setHighlightIds([]); setFilters({ domain: true, subdomain: true, ip: true, port: true }); setAliveOnly(false); setClearSelectionFlag((v) => v + 1) }} className="btn-ghost">Clear</Button>
+      <div style={floatingControlsStyle}>
+        <div style={rowStyle}>
+          <Button onClick={handleClearAll} className="btn-ghost">Clear</Button>
           <Button onClick={() => setControlsOpen((s) => !s)} className="btn-ghost">
             {controlsOpen ? "Hide controls" : "Show controls"}
           </Button>
@@ -116,8 +134,8 @@ export default function ScanPage() {
       {controlsOpen && (
         <DraggableWindow
           initialPosition={{ x: 16, y: 56 }}
-          style={{ background: "rgba(7,16,36,0.95)", borderRadius: 8, boxShadow: "0 6px 18px rgba(0,0,0,0.6)", border: "1px solid #233047", pointerEvents: "auto" }}
-          headerStyle={{ padding: "6px 10px", fontWeight: 600, color: "#e6eef6", borderBottom: "1px solid #233047", background: "rgba(7,16,36,0.98)", borderTopLeftRadius: 8, borderTopRightRadius: 8 }}
+          style={windowStyle}
+          headerStyle={windowHeaderStyle}
           bodyStyle={{ padding: 12 }}
           header={<div>Controls</div>}
         >
@@ -127,33 +145,26 @@ export default function ScanPage() {
             </div>
           )}
           <div className="controls-row">
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={rowStyle}>
               <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="domain.example" />
               <Button onClick={handleScan} disabled={loading || !domain}>
                 {loading ? 'Scanning…' : 'Scan'}
               </Button>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={rowStyle}>
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find node by name" />
               <Button onClick={handleSearch}>Find</Button>
-              <Button onClick={() => { setSearch(''); setHighlightIds([]); setFilters({ domain: true, subdomain: true, ip: true, port: true }); setAliveOnly(false); setClearSelectionFlag((v) => v + 1) }} variant="ghost">Clear</Button>
+              <Button onClick={handleClearAll} variant="ghost">Clear</Button>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#e5e7eb' }}>
-              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="checkbox" checked={filters.domain} onChange={() => toggleFilter('domain')} /> Domain
-              </label>
-              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="checkbox" checked={filters.subdomain} onChange={() => toggleFilter('subdomain')} /> Subdomain
-              </label>
-              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="checkbox" checked={filters.ip} onChange={() => toggleFilter('ip')} /> IP
-              </label>
-              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="checkbox" checked={filters.port} onChange={() => toggleFilter('port')} /> PORT
-              </label>
-              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <div style={checkboxRowStyle}>
+              {filterOptions.map((opt) => (
+                <label key={opt.key} style={checkboxLabelStyle}>
+                  <input type="checkbox" checked={filters[opt.key]} onChange={() => toggleFilter(opt.key)} /> {opt.label}
+                </label>
+              ))}
+              <label style={checkboxLabelStyle}>
                 <input type="checkbox" checked={aliveOnly} onChange={() => setAliveOnly((s) => !s)} /> Alive/Open
               </label>
             </div>
