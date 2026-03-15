@@ -13,7 +13,8 @@ function NoNodesOverlay({ layoutWidth, layoutHeight, globalFontFamily }) {
 }
 
 function EdgesLayer({ edges, posMap, nodesById, selectedComponentIds, selectedEdgeIds, hasHighlights, globalFontFamily }) {
-  if (hasHighlights) return null
+  const selectionActive = selectedComponentIds && selectedComponentIds.size
+  if (hasHighlights && !selectionActive) return null
   return (
     <g stroke="#374151" strokeWidth="1">
       <defs>
@@ -149,16 +150,22 @@ function NodesLayer({
         // only render nodes that have an available position
         if (!p) return null
         const displayLabel = getDisplayLabel(node)
-        // If a selection (component) is active, prioritize selection highlighting
+        // Determine whether a selection (component) or a highlight (search) is active.
         const selectionActive = selectedComponentIds && selectedComponentIds.size
+        const highlightActive = highlightedSet && highlightedSet.size
         let isHighlighted = false
         if (selectionActive) {
+          // when a node component is selected, highlight its component members
           isHighlighted = selectedComponentIds.has(id)
+        } else if (highlightActive) {
+          // when search/find highlights are present, use them
+          isHighlighted = highlightedSet.has(id)
         } else {
-          isHighlighted = highlightedSet && highlightedSet.size ? highlightedSet.has(id) : false
+          isHighlighted = false
         }
 
-        const nodeOpacity = selectionActive ? (isHighlighted ? 1 : 0.08) : 1
+        // If either selection or highlight is active, dim non-matching nodes
+        const nodeOpacity = selectionActive || highlightActive ? (isHighlighted ? 1 : 0.08) : 1
 
         return (
           <g

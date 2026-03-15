@@ -74,13 +74,32 @@ export default function ScanPage() {
       setHighlightIds([])
       return
     }
-    const found = (data.nodes || []).find((n) => (n.label || "").toLowerCase().includes(q))
-    if (found) {
-      // find all nodes matching the query
-      const matches = (data.nodes || []).filter((n) => (n.label || "").toLowerCase().includes(q))
-      const ids = matches.map((m) => m.id)
+
+    // Flatten node properties into a searchable string (recursively) and match against query
+    const flattenValues = (val) => {
+      if (val === null || val === undefined) return []
+      if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return [String(val)]
+      if (Array.isArray(val)) return val.flatMap((it) => flattenValues(it))
+      if (typeof val === 'object') return Object.values(val).flatMap((it) => flattenValues(it))
+      return []
+    }
+
+    const nodeMatches = (node) => {
+      try {
+        const hay = flattenValues(node).join(' ').toLowerCase()
+        return hay.includes(q)
+      } catch (err) {
+        return false
+      }
+    }
+
+    const nodes = data.nodes || []
+    const matches = nodes.filter((n) => nodeMatches(n))
+    if (matches.length) {
+      const ids = matches.map((m) => String(m.id))
       // ensure matching categories are visible
       const cats = matches.reduce((acc, m) => (acc.add(m.category), acc), new Set())
+      console.log('Find matches ids:', ids)
       setFilters((s) => {
         const copy = { ...s }
         cats.forEach((c) => (copy[c] = true))
@@ -146,14 +165,14 @@ export default function ScanPage() {
           )}
           <div className="controls-row">
             <div style={rowStyle}>
-              <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="domain.example" />
+              <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="domain.example" onKeyDown={(e) => { if (e.key === 'Enter') handleScan() }} />
               <Button onClick={handleScan} disabled={loading || !domain}>
                 {loading ? 'Scanning…' : 'Scan'}
               </Button>
             </div>
 
             <div style={rowStyle}>
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find node by name" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ex. smtp, git, 53, 10.0.1.2" onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }} />
               <Button onClick={handleSearch}>Find</Button>
               <Button onClick={handleClearAll} variant="ghost">Clear</Button>
             </div>
