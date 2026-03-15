@@ -69,7 +69,6 @@ def run_alterx(domain: str) -> set[str]:
     subdomains = {line.strip() for line in raw_output.splitlines() if line.strip()}
     return subdomains
 
-
 def run_dnsx(domain: str, subdomains: Optional[List[str]] = None) -> Dict[str, List[str]]:
     """
     Resolve each subdomain to one or more IP addresses using dnsx.
@@ -100,7 +99,6 @@ def run_dnsx(domain: str, subdomains: Optional[List[str]] = None) -> Dict[str, L
 
     return mapping
 
-
 def is_ip_alive(ip: str) -> bool:
     """
     Check if an IP is reachable using a single ping inside the container.
@@ -112,7 +110,6 @@ def is_ip_alive(ip: str) -> bool:
     cmd = f"ping -c 1 -W 1 {ip}"
     result = _worker.exec_run(["/bin/sh", "-c", cmd])
     return result.exit_code == 0
-
 
 def is_subdomain_alive(subdomain: str) -> bool:
     """
@@ -133,7 +130,6 @@ def is_subdomain_alive(subdomain: str) -> bool:
     http_cmd = f"curl -s -o /dev/null -m 5 http://{subdomain}"
     http_res = _worker.exec_run(["/bin/sh", "-c", http_cmd])
     return http_res.exit_code == 0
-
 
 def run_naabu_with_nmap(ip: str) -> List[Dict[str, str]]:
     """
@@ -209,7 +205,6 @@ def run_naabu_with_nmap(ip: str) -> List[Dict[str, str]]:
             entry["service"] = service_name
 
     return list(ports.values())
-
 
 def _write_subdomains_file(domain: str, subdomains: List[str]) -> None:
     """

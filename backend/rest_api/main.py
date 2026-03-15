@@ -1,14 +1,12 @@
+import os
+import sys
+import asyncio
 from pathlib import Path
 from typing import Dict, List, Optional
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-
-import os
-import sys
-import asyncio
 
 # On Windows the default event loop must support subprocesses for Playwright to spawn
 # browser processes. Ensure the Proactor event loop policy is used so
@@ -41,22 +39,18 @@ app.add_middleware(
 )
 
 # Serve project artifacts (including screenshots) as static files.
-# Example: /backend/projects/{domain}/screenshot/{file}.png
 backend_dir = Path(__file__).resolve().parents[1]
 projects_dir = backend_dir / "projects"
 projects_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/backend/projects", StaticFiles(directory=str(projects_dir)), name="projects")
 
-
 class ScanRequest(BaseModel):
     domain: str
-
 
 class PortInfo(BaseModel):
     number: int
     status: Optional[str] = None
     service: Optional[str] = None
-
 
 class HostInfo(BaseModel):
     subdomain: str
@@ -65,28 +59,23 @@ class HostInfo(BaseModel):
     alive: bool
     ports: List[PortInfo]
 
-
 class GraphNode(BaseModel):
     id: str
     label: str
     category: str
     alive: Optional[bool] = None
     status: Optional[str] = None
-    # Optional extra fields for port nodes
     number: Optional[int] = None
     service: Optional[str] = None
-
 
 class GraphEdge(BaseModel):
     source: str
     target: str
     label: str
 
-
 class ScanGraphResponse(BaseModel):
     nodes: List[GraphNode]
     edges: List[GraphEdge]
-
 
 @app.post("/api/scan", response_model=ScanGraphResponse)
 async def scan_domain(payload: ScanRequest) -> ScanGraphResponse:
@@ -183,37 +172,6 @@ async def scan_domain(payload: ScanRequest) -> ScanGraphResponse:
                     ports=scan_data["ports"],
                 )
             )
-
-    # # 3) Ping check + 4) Port scan via naabu
-    # hosts_payload: List[Dict] = []
-    # hosts_for_response: List[HostInfo] = []
-
-    # for sub, ips in sub_to_ips.items():
-    #     sub_alive = is_subdomain_alive(sub)
-    #     for ip in ips:
-    #         alive = is_ip_alive(ip)
-    #         ports_raw: List[Dict] = run_naabu_with_nmap(ip) if alive else []
-
-    #         hosts_payload.append(
-    #             {
-    #                 "subdomain": sub,
-    #                 "subdomain_alive": sub_alive,
-    #                 "ip": ip,
-    #                 "ports": ports_raw,
-    #             }
-    #         )
-
-    #         hosts_for_response.append(
-    #             HostInfo(
-    #                 subdomain=sub,
-    #                 subdomain_alive=sub_alive,
-    #                 ip=ip,
-    #                 alive=alive,
-    #                 ports=[PortInfo(**p) for p in ports_raw],
-    #             )
-    #         )
-
-    # Save a simple JSON summary into the project directory
     try:
         import json
 
@@ -233,7 +191,6 @@ async def scan_domain(payload: ScanRequest) -> ScanGraphResponse:
             indent=2,
         )
     except Exception:
-        # Non-fatal if writing summary fails
         pass
 
     # 5) Store full graph into Neo4j
@@ -306,7 +263,6 @@ async def scan_domain(payload: ScanRequest) -> ScanGraphResponse:
 
 
 def _get_project_root(domain: str) -> Path:
-    # backend/rest_api/main.py -> backend -> project root
     backend_dir = Path(__file__).resolve().parents[1]
     return backend_dir / "projects" / domain
 
