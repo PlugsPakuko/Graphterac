@@ -25,14 +25,19 @@
 ## Features
 - Automates asset discovery (Subdomain, Screenshot, IP, Port)
 - Relational Asset Intelligence
-- Visualizes infrastructure as an interactive graph
+- Visualizes infrastructure as an interactive graph powered by [React Flow](https://reactflow.dev/)
+  - Hierarchical tree layout (Domain → Subdomain → IP → Port)
+  - Built-in pan, zoom, and fit-view controls
+  - Minimap for birds-eye navigation
+  - Connected-component highlighting on node selection
+  - Search with visual highlighting and category-colored nodes
 
 ## Project structure
 <h1 align="center">
     <img src="./static/Architecture.png" alt="Architecture diagram" />
 </h1>
 
-- `frontend/` — React + Vite UI
+- `frontend/` — React + Vite UI (React Flow for graph visualization)
 - `backend/` — Python API (FastAPI / uvicorn style) with Docker SDK
 - Docker - Container CLI engine
 
@@ -65,7 +70,6 @@ python run_uvicorn.py
 ```
 
 ## TO DO
-- Improve Visualization and UX
 - Implement more custom cli options for variability of techniques
 - CRUD with separate project workspace at frontend
 - Neo4j cipher integration for more filtering options
