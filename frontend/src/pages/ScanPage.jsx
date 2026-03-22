@@ -192,7 +192,7 @@ export default function ScanPage() {
       )}
 
       <div style={{ marginTop: 12 }}>
-        <GraphCanvas data={filteredData} width={3000} height={2000} highlightIds={highlightIds} screenshotDomain={scannedDomain} clearSelectionFlag={clearSelectionFlag} />
+        <GraphCanvas data={filteredData} highlightIds={highlightIds} screenshotDomain={scannedDomain} clearSelectionFlag={clearSelectionFlag} />
       </div>
     </div>
   )
